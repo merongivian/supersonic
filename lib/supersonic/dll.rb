@@ -17,35 +17,45 @@ module Supersonic
     attach_function :sv_new_module, [ :int, :string, :string, :int, :int, :int ], :int
     attach_function :sv_connect_module, [ :int, :int, :int ], :int
     attach_function :sv_send_event, [ :int, :int, :int, :int, :int, :int, :int ], :int
+
+    alias_method :init, :sv_init
+    alias_method :deinit, :sv_deinit
+    alias_method :open_slot, :sv_open_slot
+    alias_method :lock_slot, :sv_lock_slot
+    alias_method :unlock_slot, :sv_unlock_slot
+    alias_method :close_slot, :sv_close_slot
+    alias_method :new_module, :sv_new_module
+    alias_method :connect_module, :sv_connect_module
+    alias_method :send_event, :sv_send_event
   end
 end
 
 extend Supersonic::DLL
 
 def play_me
-  version = sv_init nil, 44100, 2, 0
+  version = init nil, 44100, 2, 0
   p "version: #{version}"
 
-  sv_open_slot 0
+  open_slot 0
 
-  sv_lock_slot 0
-  mod_num = sv_new_module 0, "Generator", "Generator", 0, 0, 0
-  sv_unlock_slot 0
+  lock_slot 0
+  mod_num = new_module 0, "Generator", "Generator", 0, 0, 0
+  unlock_slot 0
 
   if mod_num >= 0
     p "module number: #{mod_num}"
 
-    sv_lock_slot 0
-    sv_connect_module 0, mod_num, 0
-    sv_unlock_slot 0
+    lock_slot 0
+    connect_module 0, mod_num, 0
+    unlock_slot 0
 
-    sv_send_event 0, 0, 64, 128, mod_num + 1, 0, 0
+    send_event 0, 0, 64, 128, mod_num + 1, 0, 0
     sleep 1
     # 128 = NOTE_OFF in third argument
-    sv_send_event 0, 0, 128, 0, 0, 0, 0
+    send_event 0, 0, 128, 0, 0, 0, 0
   end
 
-  sv_close_slot 0
-  sv_deinit
+  close_slot 0
+  deinit
 end
 
