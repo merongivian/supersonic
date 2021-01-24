@@ -18,6 +18,7 @@ module Supersonic
       attach_function :sv_new_module, [ :int, :string, :string, :int, :int, :int ], :int
       attach_function :sv_load_module_from_memory, [ :int, :pointer, :uint32_t, :int, :int, :int ], :int
       attach_function :sv_connect_module, [ :int, :int, :int ], :int
+      attach_function :sv_find_module, [ :int, :string ], :int
       attach_function :sv_send_event, [ :int, :int, :int, :int, :int, :int, :int ], :int
     end
 
@@ -44,6 +45,10 @@ module Supersonic
 
       def connect_module(*args)
         lock { sv_connect_module @slot_number, *args }
+      end
+
+      def find_module(module_name)
+        sv_find_module @slot_number, module_name
       end
 
       def send_event(*args)
@@ -113,6 +118,19 @@ def play_me
           # 128 = NOTE_OFF in second argument
           send_event 0, 128, 0, 0, 0, 0
         end
+      end
+
+      sleep 1
+
+      mod_num3 = find_module "SpectraVoice"
+
+      p "module number #{mod_num3}"
+      if mod_num3 >= 0
+        send_event 0, 64, 128, mod_num3 + 1, 0, 0
+
+        sleep 1
+        # 128 = NOTE_OFF in second argument
+        send_event 0, 128, 0, 0, 0, 0
       end
     end
   end
