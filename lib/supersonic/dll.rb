@@ -95,38 +95,50 @@ extend Supersonic::Sunvox::DSL
 def play_me
   with_sunvox_init do
     with_slot 0 do
-      mod_num = new_module "Generator", "Generator", 0, 0, 0
+      #mod_num = new_module "Generator", "Generator", 0, 0, 0
+
+      #if mod_num >= 0
+        #connect_module mod_num, 0
+
+        #send_event 0, 64, 128, mod_num + 1, 0, 0
+
+        #sleep 1
+        ## 128 = NOTE_OFF in second argument
+        #send_event 0, 128, 0, 0, 0, 0
+      #end
+
+      #sleep 1
+      #load_module('organ.sunsynth', 0, 0, 0) do |mod_num2|
+        #if mod_num2 >= 0
+          #connect_module mod_num2, 0
+
+          #send_event 0, 64, 128, mod_num2 + 1, 0, 0
+
+          #sleep 1
+          ## 128 = NOTE_OFF in second argument
+          #send_event 0, 128, 0, 0, 0, 0
+        #end
+      #end
+
+      #sleep 1
+
+      #mod_num3 = find_module "Generator"
+
+      #p "module number #{mod_num3}"
+      #if mod_num3 >= 0
+        #send_event 0, 64, 128, mod_num3 + 1, 0, 0
+
+        #sleep 1
+        ## 128 = NOTE_OFF in second argument
+        #send_event 0, 128, 0, 0, 0, 0
+      #end
+      #
+      mod_num = new_module "FM", "Madeup", 0, 0, 0
 
       if mod_num >= 0
         connect_module mod_num, 0
 
         send_event 0, 64, 128, mod_num + 1, 0, 0
-
-        sleep 1
-        # 128 = NOTE_OFF in second argument
-        send_event 0, 128, 0, 0, 0, 0
-      end
-
-      sleep 1
-      load_module('organ.sunsynth', 0, 0, 0) do |mod_num2|
-        if mod_num2 >= 0
-          connect_module mod_num2, 0
-
-          send_event 0, 64, 128, mod_num2 + 1, 0, 0
-
-          sleep 1
-          # 128 = NOTE_OFF in second argument
-          send_event 0, 128, 0, 0, 0, 0
-        end
-      end
-
-      sleep 1
-
-      mod_num3 = find_module "SpectraVoice"
-
-      p "module number #{mod_num3}"
-      if mod_num3 >= 0
-        send_event 0, 64, 128, mod_num3 + 1, 0, 0
 
         sleep 1
         # 128 = NOTE_OFF in second argument
