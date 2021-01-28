@@ -34,12 +34,9 @@ module Supersonic
         lock { sv_new_module @slot_number, *args }
       end
 
-      def load_module(filename, *args, &block)
-        path = File.expand_path(__dir__ << "/../../ext")
-
-        File.open("#{path}/#{filename}") do |f|
-          module_number = lock { sv_load_module_from_memory @slot_number, f.read, f.size, *args }
-          block.call(module_number)
+      def load_module(filepath, *args)
+        File.open(filepath) do |f|
+          lock { sv_load_module_from_memory @slot_number, f.read, f.size, *args }
         end
       end
 
@@ -108,19 +105,21 @@ def play_me
       #end
 
       #sleep 1
-      #load_module('organ.sunsynth', 0, 0, 0) do |mod_num2|
-        #if mod_num2 >= 0
-          #connect_module mod_num2, 0
+      filepath = File.expand_path(__dir__ << "/../../ext") << "/organ.sunsynth"
 
-          #send_event 0, 64, 128, mod_num2 + 1, 0, 0
+      mod_num2 = load_module(filepath, 0, 0, 0)
 
-          #sleep 1
-          ## 128 = NOTE_OFF in second argument
-          #send_event 0, 128, 0, 0, 0, 0
-        #end
-      #end
+      if mod_num2 >= 0
+        connect_module mod_num2, 0
 
-      #sleep 1
+        send_event 0, 64, 128, mod_num2 + 1, 0, 0
+
+        sleep 1
+        # 128 = NOTE_OFF in second argument
+        send_event 0, 128, 0, 0, 0, 0
+      end
+
+      sleep 1
 
       #mod_num3 = find_module "Generator"
 
