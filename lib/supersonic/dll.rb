@@ -18,6 +18,9 @@ module Supersonic
       attach_function :sv_new_module, [ :int, :string, :string, :int, :int, :int ], :int
       attach_function :sv_load_module_from_memory, [ :int, :pointer, :uint32_t, :int, :int, :int ], :int
       attach_function :sv_connect_module, [ :int, :int, :int ], :int
+      #attach_function :sv_get_number_of_module_ctls, [ :int, :int ], :int
+      #attach_function :sv_get_module_ctl_name, [ :int, :int, :int ], :string
+      #attach_function :sv_get_module_ctl_value, [ :int, :int, :int, :int ]
       attach_function :sv_find_module, [ :int, :string ], :int
       attach_function :sv_send_event, [ :int, :int, :int, :int, :int, :int, :int ], :int
     end
@@ -30,26 +33,10 @@ module Supersonic
         open(&block)
       end
 
-      def new_module(*args)
-        lock { sv_new_module @slot_number, *args }
-      end
-
-      def load_module(filepath, *args)
-        File.open(filepath) do |f|
-          lock { sv_load_module_from_memory @slot_number, f.read, f.size, *args }
+      def with_module(**opts, &block)
+        Module.new(slot_number: @slot_number, **opts).tap do |mod|
+          mod.instance_eval(&block)
         end
-      end
-
-      def connect_module(*args)
-        lock { sv_connect_module @slot_number, *args }
-      end
-
-      def find_module(module_name)
-        sv_find_module @slot_number, module_name
-      end
-
-      def send_event(*args)
-        sv_send_event @slot_number, *args
       end
 
       private
@@ -59,6 +46,61 @@ module Supersonic
         block.call self
         sv_close_slot @slot_number
       end
+    end
+
+    class Module
+      include Supersonic::Sunvox::DLL
+
+      def initialize(name: nil, filepath: nil, slot_number: , type: nil, x: 0, y: 0, z: 0)
+        @slot_number = slot_number
+
+        @module_number =
+          if name && type
+            lock { sv_new_module @slot_number, type, name, x, y, z }
+          elsif name
+            sv_find_module @slot_number, name
+          elsif filepath
+            File.open(filepath) do |f|
+              lock do
+                sv_load_module_from_memory(
+                  @slot_number, f.read, f.size, x, y, z
+                )
+              end
+            end
+          else
+            p 'bad arguments, couldnt process module creation'
+          end
+      end
+
+      def connect(destination: 0)
+        if @module_number < 0
+          p 'module doesnt exist'
+          return
+        end
+
+        lock do
+          sv_connect_module @slot_number, @module_number, destination
+        end
+      end
+
+      def send_event(track_num: , note: , vel: , ctl_num: 0, ctl_value: 0)
+        if @module_number < 0
+          p 'module doesnt exist'
+          return
+        end
+
+        sv_send_event(
+          @slot_number,
+          track_num,
+          note,
+          vel,
+          @module_number + 1,
+          ctl_num,
+          ctl_value
+        )
+      end
+
+      private
 
       def lock(&block)
         sv_lock_slot @slot_number
@@ -92,56 +134,30 @@ extend Supersonic::Sunvox::DSL
 def play_me
   with_sunvox_init do
     with_slot 0 do
-      #mod_num = new_module "Generator", "Generator", 0, 0, 0
-
-      #if mod_num >= 0
-        #connect_module mod_num, 0
-
-        #send_event 0, 64, 128, mod_num + 1, 0, 0
-
-        #sleep 1
-        ## 128 = NOTE_OFF in second argument
-        #send_event 0, 128, 0, 0, 0, 0
-      #end
-
-      #sleep 1
-      filepath = File.expand_path(__dir__ << "/../../ext") << "/organ.sunsynth"
-
-      mod_num2 = load_module(filepath, 0, 0, 0)
-
-      if mod_num2 >= 0
-        connect_module mod_num2, 0
-
-        send_event 0, 64, 128, mod_num2 + 1, 0, 0
-
+      with_module(name: 'beep', type: 'Generator') do
+        connect
+        send_event(track_num: 0, note: 64, vel: 128)
         sleep 1
-        # 128 = NOTE_OFF in second argument
-        send_event 0, 128, 0, 0, 0, 0
+        send_event(track_num: 0, note: 128, vel: 0)
       end
 
       sleep 1
 
-      #mod_num3 = find_module "Generator"
-
-      #p "module number #{mod_num3}"
-      #if mod_num3 >= 0
-        #send_event 0, 64, 128, mod_num3 + 1, 0, 0
-
-        #sleep 1
-        ## 128 = NOTE_OFF in second argument
-        #send_event 0, 128, 0, 0, 0, 0
-      #end
-      #
-      mod_num = new_module "FM", "Madeup", 0, 0, 0
-
-      if mod_num >= 0
-        connect_module mod_num, 0
-
-        send_event 0, 64, 128, mod_num + 1, 0, 0
-
+      with_module(name: 'beep') do
+        send_event(track_num: 0, note: 60, vel: 128)
         sleep 1
-        # 128 = NOTE_OFF in second argument
-        send_event 0, 128, 0, 0, 0, 0
+        send_event(track_num: 0, note: 128, vel: 0)
+      end
+
+      sleep 1
+
+      filepath = File.expand_path(__dir__ << "/../../ext") << "/organ.sunsynth"
+
+      with_module(filepath: filepath) do
+        connect
+        send_event(track_num: 0, note: 60, vel: 128)
+        sleep 1
+        send_event(track_num: 0, note: 128, vel: 0)
       end
     end
   end
