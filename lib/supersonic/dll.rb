@@ -18,9 +18,9 @@ module Supersonic
       attach_function :sv_new_module, [ :int, :string, :string, :int, :int, :int ], :int
       attach_function :sv_load_module_from_memory, [ :int, :pointer, :uint32_t, :int, :int, :int ], :int
       attach_function :sv_connect_module, [ :int, :int, :int ], :int
-      #attach_function :sv_get_number_of_module_ctls, [ :int, :int ], :int
-      #attach_function :sv_get_module_ctl_name, [ :int, :int, :int ], :string
-      #attach_function :sv_get_module_ctl_value, [ :int, :int, :int, :int ]
+      attach_function :sv_get_number_of_module_ctls, [ :int, :int ], :int
+      attach_function :sv_get_module_ctl_name, [ :int, :int, :int ], :string
+      attach_function :sv_get_module_ctl_value, [ :int, :int, :int, :int ], :int
       attach_function :sv_find_module, [ :int, :string ], :int
       attach_function :sv_send_event, [ :int, :int, :int, :int, :int, :int, :int ], :int
     end
@@ -72,6 +72,26 @@ module Supersonic
           end
       end
 
+      def ctl_count
+        @ctl_count ||= sv_get_number_of_module_ctls @slot_number, @module_number
+      end
+
+      def ctl_name(ctl_num)
+        sv_get_module_ctl_name @slot_number, @module_number, ctl_num
+      end
+
+      def ctl_num(ctl_name)
+        all_ctl_names.index(ctl_name) + 1
+      end
+
+      def all_ctl_names
+        @all_ctl_names ||= (1..ctl_count).map(&method(:ctl_name))
+      end
+
+      def get_ctl_value(ctl_num, scale: 0)
+        sv_get_module_ctl_value @slot_number, @module_number, ctl_num, scale
+      end
+
       def connect(destination: 0)
         if @module_number < 0
           p 'module doesnt exist'
@@ -83,11 +103,13 @@ module Supersonic
         end
       end
 
-      def send_event(track_num: , note: , vel: , ctl_num: 0, ctl_value: 0)
+      def send_event(track_num: , note: , vel: , ctl: 0, ctl_value: 0)
         if @module_number < 0
           p 'module doesnt exist'
           return
         end
+
+        controller_num = ctl.is_a?(String) ? ctl_num(ctl) : ctl
 
         sv_send_event(
           @slot_number,
@@ -95,7 +117,7 @@ module Supersonic
           note,
           vel,
           @module_number + 1,
-          ctl_num,
+          controller_num,
           ctl_value
         )
       end
@@ -144,7 +166,7 @@ def play_me
       sleep 1
 
       with_module(name: 'beep') do
-        send_event(track_num: 0, note: 60, vel: 128)
+        send_event(track_num: 0, note: 60, vel: 128, ctl: 'Waveform', ctl_value: 25)
         sleep 1
         send_event(track_num: 0, note: 128, vel: 0)
       end
