@@ -21,6 +21,8 @@ module Supersonic
       attach_function :sv_get_number_of_module_ctls, [ :int, :int ], :int
       attach_function :sv_get_module_ctl_name, [ :int, :int, :int ], :string
       attach_function :sv_get_module_ctl_value, [ :int, :int, :int, :int ], :int
+      attach_function :sv_connect_module, [ :int, :int, :int ], :int
+      attach_function :sv_disconnect_module, [ :int, :int, :int ], :int
       attach_function :sv_find_module, [ :int, :string ], :int
       attach_function :sv_send_event, [ :int, :int, :int, :int, :int, :int, :int ], :int
     end
@@ -34,9 +36,24 @@ module Supersonic
       end
 
       def with_module(**opts, &block)
-        Module.new(slot_number: @slot_number, **opts).tap do |mod|
-          mod.instance_eval(&block)
+        set_module.tap do |the_module|
+          the_module.instance_eval(&block)
         end
+      end
+
+      def set_module(**opts)
+        Module.new(slot_number: @slot_number, **opts)
+      end
+
+      def chain(*modules)
+        last_module_connected = modules.first
+
+        modules.map do |the_module|
+          last_module_connected.connect(the_module)
+          last_module_connected = the_module
+        end
+
+        modules.last.connect
       end
 
       private
@@ -92,23 +109,19 @@ module Supersonic
         sv_get_module_ctl_value @slot_number, @module_number, ctl_num, scale
       end
 
-      def connect(destination: 0)
-        if @module_number < 0
-          p 'module doesnt exist'
-          return
-        end
-
+      def connect(destination = 0)
         lock do
-          sv_connect_module @slot_number, @module_number, destination
+          sv_connect_module @slot_number, @module_number, destination.to_i
+        end
+      end
+
+      def disconnect(destination = 0)
+        lock do
+          sv_disconnect_module @slot_number, @module_number, destination.to_i
         end
       end
 
       def send_event(track_num: , note: , vel: , ctl: 0, ctl_value: 0)
-        if @module_number < 0
-          p 'module doesnt exist'
-          return
-        end
-
         controller_num = ctl.is_a?(String) ? ctl_num(ctl) : ctl
 
         sv_send_event(
@@ -120,6 +133,10 @@ module Supersonic
           controller_num,
           ctl_value
         )
+      end
+
+      def to_i
+        @module_number
       end
 
       private
@@ -156,31 +173,50 @@ extend Supersonic::Sunvox::DSL
 def play_me
   with_sunvox_init do
     with_slot 0 do
-      with_module(name: 'beep', type: 'Generator') do
-        connect
-        send_event(track_num: 0, note: 64, vel: 128)
-        sleep 1
-        send_event(track_num: 0, note: 128, vel: 0)
-      end
+      #with_module(name: 'beep', type: 'Generator') do
+        #connect
+        #send_event(track_num: 0, note: 64, vel: 128)
+        #sleep 1
+        #send_event(track_num: 0, note: 128, vel: 0)
+      #end
 
+      #sleep 1
+
+      #with_module(name: 'beep') do
+        #send_event(track_num: 0, note: 60, vel: 128, ctl: 'Waveform', ctl_value: 25)
+        #sleep 1
+        #send_event(track_num: 0, note: 128, vel: 0)
+      #end
+
+      #sleep 1
+
+      #filepath = File.expand_path(__dir__ << "/../../ext") << "/organ.sunsynth"
+
+      #with_module(filepath: filepath) do
+        #connect
+        #send_event(track_num: 0, note: 60, vel: 128)
+        #sleep 1
+        #send_event(track_num: 0, note: 128, vel: 0)
+      #end
+
+      generator = set_module(name: 'beep2', type: 'Analog generator')
+      flanger = set_module(name: 'flanger', type: 'Flanger')
+      reverb = set_module(name: 'reverb', type: 'Reverb')
+
+      chain(generator, reverb, flanger)
+      #generator.connect(reverb)
+      #reverb.connect(flanger)
+      #flanger.connect
+
+      generator.send_event(track_num: 0, note: 60, vel: 128)
+      reverb.send_event(track_num: 0, note: 0, vel: 0, ctl: 3, ctl_value: 100)
       sleep 1
-
-      with_module(name: 'beep') do
-        send_event(track_num: 0, note: 60, vel: 128, ctl: 'Waveform', ctl_value: 25)
-        sleep 1
-        send_event(track_num: 0, note: 128, vel: 0)
-      end
-
+      generator.send_event(track_num: 0, note: 128, vel: 0)
       sleep 1
-
-      filepath = File.expand_path(__dir__ << "/../../ext") << "/organ.sunsynth"
-
-      with_module(filepath: filepath) do
-        connect
-        send_event(track_num: 0, note: 60, vel: 128)
-        sleep 1
-        send_event(track_num: 0, note: 128, vel: 0)
-      end
+      generator.send_event(track_num: 0, note: 64, vel: 128)
+      flanger.send_event(track_num: 0, note: 0, vel: 0, ctl: 2, ctl_value: 500)
+      sleep 3
+      generator.send_event(track_num: 0, note: 128, vel: 0)
     end
   end
 end
